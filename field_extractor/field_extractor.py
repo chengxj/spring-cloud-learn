@@ -1,5 +1,6 @@
 import json
 import copy
+
 import mgr as mgr
 from copy import deepcopy
 from urlparse import urlparse
@@ -23,8 +24,10 @@ def check(args, kwargs, required=True):
                 raise Exception("Value for %s must be an integer between %d and %d" %(rarg,rmin,rmax))
         elif rtype == "json":
             try:
+                print 'rarg=', rarg
                 kwargs[rarg] = json.loads(kwargs[rarg])
             except Exception, e:
+                print e
                 raise e
                 raise Exception("bad json for %s: %s" % (rarg, kwargs[rarg]))
         else: pass
@@ -39,7 +42,6 @@ def checkArgs(required_args, optional_args, kwargs):
             raise Exception("Unknown argument %s" % k)
     return kwargs
 
-
 def mungeExamples(examples, fieldName):
     munged = copy.deepcopy(examples)
     for example in munged:
@@ -49,19 +51,14 @@ def mungeExamples(examples, fieldName):
             eventDict = dict()
             eventDict[fieldName] = fulltext
             example['_event'] = eventDict
+
     return munged
 
-
-class RegexGenHandler():
-
-	def __init__(self, msg):
-        self.msg=r'[{"_rawtext":"218.63.248.21 - - [16/Aug/2018:19:10:24 +0800] POS1T /api/search/logs_rect?query=*&start=2016-12-14+00%3A49%3A58&end=2016-12-14+01%3A49%3A58&source_type=log HTTP/1.0\" 200 800 \"http://10.0.0.150:8888/manage/permission\" \"Mozilla/4.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/4.0; SLCC2; .NET CLR 2.0.50727; .NET CLR 3.5.30729; .NET CLR 3.0.30729; Media Center PC 6.0; Tablet PC 2.0)\"$0.025$","url":[53,156]}]'
-
+class RegexGenHandler:
     def handle_GET(self):
         required_args = {
             "field": ('string', None),
             "examples": ('json', None),
-            "sid": ('string', None)
         }
         optional_args = {
             "filter": ('string', None),
@@ -69,20 +66,28 @@ class RegexGenHandler():
             "count": ('int', (1,500)),
             "offset": ('int', (0,1000))
         }
-        kwargs = checkArgs(required_args, optional_args, self.msg)
-        ex = mungeExamples(kwargs['examples'], kwargs['field'])
-        rules = mgr.gtfo(
-            self.sessionKey,
-            kwargs['field'],
-            mungeExamples(kwargs['examples'], kwargs['field']),
-            mungeExamples(kwargs.get('counter_examples', []), kwargs['field']),
-            kwargs.get('filter', ''),
-            kwargs['sid'],
-            kwargs.get('offset', 0),
-            kwargs.get('count', 100)
-        )
-		print 'rules ========== ', rules
+        params = {
+            "output_mode":"json",
+            "field":"_raw",
+            "filter":"+0800",
+            "examples": [{
+                "_rawtext":"218.63.248.21 - - [16/Aug/2018:19:10:24 +0800] \"POST /api/search/logs_rect?query=*&start=2016-12-14+00%3A49%3A58&end=2016-12-14+01%3A49%3A58&source_type=log HTTP/1.0\" 200 800 \"http://10.0.0.150:8888/manage/permission\" \"Mozilla/4.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/4.0; SLCC2; .NET CLR 2.0.50727; .NET CLR 3.5.30729; .NET CLR 3.0.30729; Media Center PC 6.0; Tablet PC 2.0)\"$0.025$",
+                # "_rawtext":"218.63.248.21 - - [16/Aug/2018:19:10:24 +0800]",
+                "IP":[0, 13],
+                "URL":[53, 156]
+            }]
+        }
+        # kwargs = checkArgs(required_args, optional_args, params)
 
-if __name__ == '__main__':
-	RegexGenHandler handler =new RegexGenHandler("")
-	handler.handle_GET()
+        # ex = mungeExamples(kwargs['examples'], kwargs['field'])
+        rules = mgr.gtfo(
+            params['field'],
+            mungeExamples(params['examples'], params['field']),
+            [],
+            ''
+        )
+        print 'rules = ', rules
+
+if __name__ == "__main__":
+    regex = RegexGenHandler()
+    regex.handle_GET()
