@@ -1,11 +1,7 @@
-#Copyright (C) 2005-2015 Splunk Inc. All Rights Reserved. This work contains trade
-#secrets and confidential material of Splunk Inc., and its use or disclosure in
-#whole or in part without the express written permission of Splunk Inc. is prohibited.
-
 import time, re
 import logging
 
-logger = logging.getLogger('dmfx') 
+logger = logging.getLogger('dmfx')
 
 # more interations is good for interactive learning of terms, but in
 # ifx we're focusing on learning of ONE rule
@@ -47,7 +43,6 @@ def fastFirstRuleCMP(x, y):
     return y.getMatchCount() - x.getMatchCount() #len(x._wholePattern) - len(y._wholePattern)
 
 def learn(events, examples, counterexamples, justTopRule=True):
-
     rules = None
     newTerms = None
     newExamples = list(examples)
@@ -64,7 +59,7 @@ def learn(events, examples, counterexamples, justTopRule=True):
     for rule in rules:
         terms.update(rule.getExamplesCount().keys())
         terms.update(rule.getLearnedCount().keys())
-        
+
     logger.debug("%s rules" % len(rules))
     orderedTerms = list(terms)
     orderedTerms.sort()
@@ -86,8 +81,9 @@ def learn(events, examples, counterexamples, justTopRule=True):
             myrules = extractions.get(term, [])
             myrules.append(pos)
             extractions[term] = myrules
-        
+
     return regexes, extractions
+
 
 def removeDoomedRules(rules, doomed):
     for d in doomed:
@@ -96,9 +92,11 @@ def removeDoomedRules(rules, doomed):
                 del rules[i]
                 break
 
+
 def patternComplexity(pattern):
     return pattern.count('(') + pattern.count('[') + pattern.count('\\')
-    
+
+
 def _generateRules(events, extractions):
     rules = {}
     for event in events:
@@ -155,7 +153,7 @@ def _validateRules(events, examples, counterexamples, rules):
     rules.sort(ruleCMP) # (fastFirstRuleCMP)
     while len(rules) > MAX_RULES_TO_CONSIDER_BEFORE_VALIDATION:
         rules.pop()
-        
+
 
     # reset the preliminary rule scores to be calc'd again after validation
     for r in rules:
@@ -188,7 +186,7 @@ def _validateRules(events, examples, counterexamples, rules):
     removeBadRules(rules, badrules)
 
     return newExtractions
-    
+
 
 def _generateEventRules(events, event, extractions):
     rules = []
@@ -213,13 +211,12 @@ def safeRegexLiteral(literal):
             ch = "\\" + ch
         if ch == '\t':
             ch = "\\t"
-            
+
         safe += ch
     return safe
 
 def getBestSkipPuncs(text, isPrefix):
     punct = GUIDEPOST_CHARACTERS
-
     scores = []
     l = len(text)
     for p in punct:
@@ -242,7 +239,7 @@ def getBestSkipPuncs(text, isPrefix):
             if p == ' ': thisscore *= 4
             scores.append((thispos, thisscore))
             #print "PUNCT: %s SCORE: %s DIST: %s COUNT %s" % (p, thisscore, dist, text.count(p))
-                
+
     scores.sort(lambda x,y: x[1] - y[1])
     # return top 5 scoring jump chars pos
     return [v[0] for v in scores[:5]]
@@ -258,7 +255,7 @@ def generateSearchRegex(text):
             chStr = "\\t"
         elif needsEsc(ch):
             chStr = "\\" + ch
-        else: 
+        else:
             chStr = ch
         regex = "%s" % chStr
         if count > 1:
@@ -271,10 +268,11 @@ def generateSearchRegex(text):
     regex = regex.replace(' ', '\\s')
     return regex
 
+'''
+
+'''
 def generateSimpleRegexes(text, isPrefix, multiline, loosenCount = False):
-
     bestpositions = getBestSkipPuncs(text, isPrefix)
-
     regexes = []
     for bestpos in bestpositions:
         try:
@@ -286,7 +284,7 @@ def generateSimpleRegexes(text, isPrefix, multiline, loosenCount = False):
                 chStr = "\\t"
             elif needsEsc(ch):
                 chStr = "\\" + ch
-            else: 
+            else:
                 chStr = ch
             countstr = ""
             if count > 1:
@@ -325,7 +323,7 @@ def generateSimpleRegexes(text, isPrefix, multiline, loosenCount = False):
             simplifiedRegex = re.sub(r'(\\d\+\\s\+)+', r'(\d+\s+)+', simplifiedRegex) # reduce repetitions of \d+\s+ sequence
             regexes.append(simplifiedRegex)
         except Exception, e:
-            logE(e)            
+            logE(e)
     return regexes
 
 
@@ -348,8 +346,8 @@ def fixIdentifiers(types):
         types = types.replace("\\w+_\\w+", "[a-z_-]+")
         types = types.replace("\\w+_", "\\w+")
         types = types.replace("_\\w+", "\\w+")
-        types = types.replace("\\s+\-\\d", "\\s+[-+]\\d")        
-        types = types.replace("\\s+\+\\d", "\\s+[-+]\\d")        
+        types = types.replace("\\s+\-\\d", "\\s+[-+]\\d")
+        types = types.replace("\\s+\+\\d", "\\s+[-+]\\d")
         #print "types: \n\t%s\n\t%s" % (oldtypes, types)
     return types
 
@@ -414,7 +412,10 @@ CHARMAP = {
 '}': ('\\}', False),
 }
 
-    
+
+'''
+convert to char array and generate regular array
+'''
 def splitText(text):
     types = []
     token = ""
@@ -436,21 +437,18 @@ def splitText(text):
             token = ""
         if chtype == lastchtype and not allowplus:
             types.append(lastchtype)
-            typelen += 1            
+            typelen += 1
         token += ch
         lastchtype = chtype
         lastallowplus = allowplus
-
         if typelen > MAX_REGEX_ELEMENTS:
             raise Exception("REGEX TOO LONG: %d" %typelen)
-
     if lastchtype != None:
         types.append(lastchtype)
     if lastallowplus:
         types.append("+")
     types = "".join(types)
     return types
-
 
 
 def logE(e):
@@ -471,7 +469,6 @@ def generatePatterns(event, extraction, startpos):
             multiline = "m"
             if SOL >= 0: prefix = prefix[SOL+1:]
             if EOL >= 0: suffix = suffix[:EOL]
-        
         patterns = []
         patterns.extend(generateForwardPatterns(event, extraction, multiline, end, prefix, suffix))
         patterns.extend(generateTrivialForwardPatterns(event, extraction, multiline, end, prefix, suffix))
@@ -497,7 +494,7 @@ def generateForwardPatterns(event, extraction, multiline, end, prefix, suffix):
             pattern = fixIdentifiers(pattern)
             patterns.append((pattern, 'forward'))
     except Exception, e:
-        logE(e)            
+        logE(e)
     return patterns
 
 def generateBackwardPatterns(event, extraction, multiline, end, prefix, suffix):
@@ -508,10 +505,10 @@ def generateBackwardPatterns(event, extraction, multiline, end, prefix, suffix):
         #print "SUFFIX:", suffix, "REGEX:", suffixRegexes
         for suffixRegex in suffixRegexes:
             pattern = "(?i)%s(?P<FIELDNAME>%s)%s" % (oppositeRegex, valueRegex, suffixRegex)
-            pattern = fixIdentifiers(pattern)        
+            pattern = fixIdentifiers(pattern)
             patterns.append((pattern, 'backward'))
     except Exception, e:
-        logE(e)            
+        logE(e)
     return patterns
 
 def generateForwardLiteralPatterns(event, extraction, multiline, end, prefix, suffix):
@@ -520,14 +517,14 @@ def generateForwardLiteralPatterns(event, extraction, multiline, end, prefix, su
         oppositeChar = ""
         if suffix != "": oppositeChar = suffix[0]
         valueRegex, oppositeRegex = getValueRegex(extraction, True, suffix)
-        if oppositeRegex == "": oppositeRegex = simpleOppositeRegex(oppositeChar, extraction)        
+        if oppositeRegex == "": oppositeRegex = simpleOppositeRegex(oppositeChar, extraction)
         prefixRegexes = getPrefixRegexes(prefix, multiline, True)
         for prefixRegex in prefixRegexes:
             pattern = "(?i)%s(?P<FIELDNAME>%s)%s" % (prefixRegex, valueRegex, oppositeRegex)
             pattern = fixIdentifiers(pattern)
             patterns.append((pattern, 'forward-literal'))
     except Exception, e:
-        logE(e)            
+        logE(e)
     return patterns
 
 
@@ -570,7 +567,7 @@ def generateTrivialForwardPatterns(event, extraction, multiline, end, prefix, su
                     except Exception, e:
                         pass
     except Exception, e:
-        logE(e)            
+        logE(e)
     return patterns
 
 
@@ -578,7 +575,7 @@ def generateForwardDelimiterPatterns(event, extraction, multiline, end, prefix, 
 
     patterns = []
     try:
-        if suffix == '' or suffix == '\n': suffix = "$" 
+        if suffix == '' or suffix == '\n': suffix = "$"
         if prefix == '': prefix = '^'
         suffix = suffix[0]
         prefix = prefix[-1]
@@ -589,37 +586,34 @@ def generateForwardDelimiterPatterns(event, extraction, multiline, end, prefix, 
             pattern = "(?i)%s(?P<FIELDNAME>%s)%s" % (prefixVal, valueRegex, suffixVal)
             patterns.append((pattern, 'forward-delimiter'))
     except Exception, e:
-        logE(e)            
+        logE(e)
     return patterns
 
-def getValueRegex(extraction, forward, suffix, max_value_regex=0): #MAX_VALUE_REGEX):
 
+def getValueRegex(extraction, forward, suffix, max_value_regex=0): #MAX_VALUE_REGEX):
     # make value extractions
     try:
         valueRegex = splitText(extraction)
     except:
         valueRegex = ".+?"
-
-    oppositeRegex = "" 
+    oppositeRegex = ""
     simplifiedValueRegex = False
-
     # if forward rule, and there is not suffix (we're at the end
     # of the line), the value is just everything (.*)
     if forward and suffix == "":
         valueRegex = ".+"
-        simplifiedValueRegex = True                    
+        simplifiedValueRegex = True
     # if we have a suffix and the value regex is too complicated (too long)
     # try to simplify the value regex if it can be via the suffix
     elif suffix != "" and len(valueRegex) > max_value_regex:
         endchar = suffix[0]
         # interesting suffix
         if endchar in VALUEPOST_CHARACTERS:
-            # and  not in the extraction or is in extraction, but 
+            # and  not in the extraction or is in extraction, but
             if not endchar in extraction:
                 simplifiedValueRegex = True
-                valueRegex = "[^%s]+" % safeRegexLiteral(endchar)                    
+                valueRegex = "[^%s]+" % safeRegexLiteral(endchar)
                 oppositeRegex = ""
-                
         # if we haven't yet simplified the value regex and we are making a forward regex
         if not simplifiedValueRegex and forward:
             # see if start of suffix isn't in value regex, do non-greed match
@@ -637,8 +631,8 @@ def getValueRegex(extraction, forward, suffix, max_value_regex=0): #MAX_VALUE_RE
                     oppositeRegex = suffixTasteRegex
                     valueRegex = ".+?"
                     break
-                
     return valueRegex, oppositeRegex
+
 
 # Added by NGHI
 def getValueRegex2(extraction, forward, suffix, max_value_regex=0): #MAX_VALUE_REGEX):
@@ -661,11 +655,11 @@ def getValueRegex2(extraction, forward, suffix, max_value_regex=0): #MAX_VALUE_R
         endchar = suffix[0]
         # interesting suffix
         if endchar in VALUEPOST_CHARACTERS:
-            # and  not in the extraction or is in extraction, but 
-            if not endchar in extraction: 
-                valueRegex = "[^%s]+" % safeRegexLiteral(endchar) 
-                valueRegexes.append((valueRegex,1.0)) 
-                
+            # and  not in the extraction or is in extraction, but
+            if not endchar in extraction:
+                valueRegex = "[^%s]+" % safeRegexLiteral(endchar)
+                valueRegexes.append((valueRegex,1.0))
+
     return valueRegexes
 
 
@@ -676,11 +670,13 @@ def simpleOppositeRegex(oppositeChar, extraction):
     #    return "(?=%s)" % safeRegexLiteral(oppositeChar)
     return ""
 
+
 def getPrefixRegexes(prefix, multiline, literal=False):
     if literal:
         return getLiteralPrefixRegexes(prefix, multiline)
     else:
-        return generateSimpleRegexes(prefix, True, multiline)            
+        return generateSimpleRegexes(prefix, True, multiline)
+
 
 def getLiteralPrefixRegexes(text, multiline):
     # look for meaty term before match
@@ -711,10 +707,6 @@ def getLiteralPrefixRegexes(text, multiline):
 
 #    if len(text) == 0: return []
     return [ regex + meat for regex in generateSimpleRegexes(text, True, multiline) ]
-    
-
-
-####################################################
 
 
 def makeRules(extraction, startpos, event, examples):
@@ -732,12 +724,10 @@ class PositionalRule:
         self._examplesCount = {}
         self._regex = None
         self._learnedExtractionsCount = {}
-
         self._wholePattern = pattern
         self._source_extraction = extraction
         self.setExamples(examples)
         self.addExtraction(extraction)
-        
         self._score = None
         self._matchCount = 0
         self._bias = 1.0
@@ -747,25 +737,28 @@ class PositionalRule:
             self._bias = 0.7 # penalty for less reliable rule
         elif ruletype.startswith('backward'):
             self._bias = 0.7 # penalty for less reliable rule
-        
+
     def __str__(self):
         #return "regex: %s    Examples: %s" % (str("".join(self._wholePattern)), self._examplesCount)
         return "regex: %s" % (str("".join(self._wholePattern)))
+
     def __hash__(self):
         return hash(str(self))
+
     def incMatchCount(self):
         self._matchCount += 1
+
     def getMatchCount(self):
         return self._matchCount
+
     def getSourceExtraction(self):
         return self._source_extraction
-        
+
     def getScore(self):
         if self._score == None:
             self._score = self.calcScore()
         return self._score
 
-    
     def extractionExpectedness(self):
         '''measure of how off the avg length of the learned extractions are from the example extractions'''
         learned = self.getLearnedCount().keys()
@@ -774,7 +767,6 @@ class PositionalRule:
             return 1
         avgExampleLen = float(sum([ len(k) for k in examples]))  / len(examples)
         avgLearnedLen = float(sum([ len(k) for k in learned]))   / len(learned)
-
         minExampleLen = min([ len(k) for k in examples])
         minLearnedLen = min([ len(k) for k in learned])
         maxExampleLen = max([ len(k) for k in examples])
@@ -786,7 +778,7 @@ class PositionalRule:
         seenNum = False
         seenShortText = False
         seenLongText = False
-        
+
         for v in vals:
             try:
                 float(v)
@@ -795,7 +787,7 @@ class PositionalRule:
                 if len(v)>20:
                     seenLongText = True
                 else:
-                    seenShortText = True                    
+                    seenShortText = True
             if seenNum and (seenShortText or seenLongText):
                 return "mixed"
         if seenNum:
@@ -808,13 +800,11 @@ class PositionalRule:
             return "longtext"
         return "unknown"
 
-    
     def learnedConsistent(self):
         exType = self.valType(self.getExamplesCount().keys())
         lrnType = self.valType(self.getLearnedCount().keys())
         return lrnType == "unknown" or exType == lrnType
-        
-        
+
     def calcScore(self):
         exampleCount = sum(self.getExamplesCount().values())      # number of examples matched
         exampleVarietyPerc = float(sum([ 1 for v in self.getExamplesCount().values() if v > 0]))  / len(self.getExamplesCount())# number of examples this rule extracts
@@ -831,7 +821,7 @@ class PositionalRule:
         score *= self._bias
         if self.learnedConsistent():
             score += 500
-        
+
         #if score > 10000:
             #if self.learnedConsistent():
                 #print "consistent!",
@@ -841,7 +831,6 @@ class PositionalRule:
         #print self.getExamplesCount()
         #print self.getLearnedCount()
         return score
-    
 
     def getWholePattern(self):
         return self._wholePattern
@@ -850,12 +839,12 @@ class PositionalRule:
         if self._regex == None:
             self._regex = re.compile(self._wholePattern)
         return self._regex
-    
+
     def setExamples(self, examples):
         self._examplesCount = {}
         for ke in examples:
             self._examplesCount[ke] = 0
-            
+
     def getExamples(self):
         return self._examplesCount.keys()
 
@@ -864,7 +853,7 @@ class PositionalRule:
 
     def getLearnedCount(self):
         return self._learnedExtractionsCount
-    
+
     def addExtraction(self, extraction):
         if extraction in self._examplesCount:
             self._examplesCount[extraction] += 1
@@ -875,5 +864,3 @@ class PositionalRule:
 
     def findExtractions(self, event):
         return self.getRE().findall(event)
-
-
